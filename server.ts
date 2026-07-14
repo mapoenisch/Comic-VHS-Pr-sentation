@@ -1,11 +1,7 @@
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
@@ -13,8 +9,14 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Use Gemini API Key from environment
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  let aiClient: GoogleGenAI | null = null;
+  const getAi = () => {
+    if (!aiClient) {
+      if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is required");
+      aiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    }
+    return aiClient;
+  };
 
   // API Route: Generate Image
   app.post('/api/generate-image', async (req, res) => {
@@ -25,6 +27,7 @@ async function startServer() {
       }
 
       // Using the recommended image preview model for quick generations
+      const ai = getAi();
       const response = await ai.models.generateImages({
         model: 'gemini-3.1-flash-image-preview',
         prompt: prompt,
@@ -143,6 +146,7 @@ async function startServer() {
         { role: 'user', parts: [{ text: message }]}
       ];
 
+      const ai = getAi();
       const response = await ai.models.generateContent({
         model: 'gemini-3.1-pro-preview',
         contents: contents,
